@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      disableCache:
+        description: 'Type `true` to disable cache for this run; defaults to `false`'
+        required: false
+        default: false
+
+jobs:
+  BuildAndDeploy:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        persist-credentials: false
+    - uses: julia-actions/setup-julia@v1
+    - uses: julia-actions/cache@v1
+    - uses: julia-actions/julia-buildpkg@v1
+
+    - name: Build notebooks
+      run: julia --project -e 'using Tutorials; build_tutorials()'
+      env:
+        JULIA_NUM_THREADS: '2'
+        DISABLE_CACHE: '${{ github.event.inputs.disableCache }}'
+        REPO: '${{ github.repository }}'
+
+    - name: Build site
+      run: julia --project -e '
+        using Franklin; optimize(; fail_on_warning=true, minify=false)'
+
+    - name: Deploy to secondary branch
+      if: ${{ github.event_name != 'pull_request' }}
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # To reduce state (ease debugging) and the size of the gh-pages branch.
+        force_orphan: true
+        publish_dir: ./__site
+
