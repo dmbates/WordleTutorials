@@ -25,8 +25,6 @@ Someone joked that we wouldn't be satisfied until we could do that task in less 
 
 The code in this posting can be used to solve a Wordle game very rapidly, as well as related games like Primel.
 
-> **WARNING** The code in this notebook has the potential to make playing Wordle quite boring. If you are enjoying playing Wordle you may want to stop reading now.
-
 Before beginning we attach several packages that we will use in this notebook.
 """
 
@@ -71,7 +69,7 @@ all(w -> length(w) == 5, wordlestrings)
 # ╔═╡ 22f7e1ad-3a2b-4a88-8f81-91feada88621
 md"""
 That last expression may look, well, "interesting".
-It is a way of checking that a function, in this case an anonymous function expressed using the "stabby lambda" syntax, returns `true` for each element of an iterator, in this case the vector `wordlestrings`.
+It is a way of checking that a function, in this case an anonymous function expressed using the [stabby lambda](https://dev.to/keithrbennett/why-i-prefer-stabby-lambda-notation-5gcj) notation, returns `true` for each element of an iterator, in this case the vector `wordlestrings`.
 You can read the whole expression as "is `length(w)` equal to `5` for each word `w` in `wordlestrings`".
 
 These words are supposed to be exactly 5 letters long but it never hurts to check.
@@ -156,13 +154,13 @@ function tiles(sc, ntiles)
 end
 ```
 
-## Examining the `score` function
+## Examining the score function
 
 In the Sherlock Holmes story [The Adventure of Silver Blaze](thttps://en.wikipedia.org/wiki/The_Adventure_of_Silver_Blaze) there is a famous exchange where Holmes remarks on "the curious incident of the dog in the night-time" (see the link).
 The critical clue in the case is not what happened but what didn't happen - the dog didn't bark.
 
 Just as Holmes found it interesting that the dog didn't bark, we should find the functions in this notebook interesting for what they don't include.
-For the most part the arguments aren't given explicit types.
+In many functions shown here the arguments aren't given explicit types.
 
 Knowing the concrete types of arguments is very important when compiling functions, as is done in Julia, but these functions are written without explicit types.
 
@@ -209,10 +207,10 @@ g == t ? 2 : (g  ∈ target)
 ```
 is a *ternary operator* expression (the name comes from the operator taking three arguments).
 It evaluates the condition, `g == t`, and returns `2` if the condition is `true`.
-If the `g == t` is `false` the operator returns the value of the Boolean expression `g  ∈ target`, converted to an `Int`.
-The Boolean expression will return `false` or `true`, which become `0` or `1` when converted to an `Int`.
-This is one of the few times that we explicitly convert a result to a particular type.
-We do so because `2` is an `Int` and we don't want the type of the value of the ternary operator expression to change depending on the value of its arguments.
+If `g == t` is `false` the operator returns the value of the Boolean expression `g  ∈ target`.
+(The expression could also be written `g in target`.
+In the Julia REPL the `∈` character is created by typing `\in<tab>`.)
+The Boolean expression will return `false` or `true`, which will be promoted to `0` or `1` for the `+=` operation.
 
 The operation of multiplying by 3 and adding 2 or 1 or 0 is an implementation of [Horner's method](https://en.wikipedia.org/wiki/Horner%27s_method) for evaluating a polynomial.
 
@@ -221,10 +219,10 @@ Even more remarkable is that it will be very, very fast after its first usage tr
 That's important because this function will be in a "hot loop".
 It will be called many, many times when evaluating the next guess.
 
-(Unfortunately, this version doesn't properly account for cases where a character is repeated in the guess - an example of Kernighan and Plauger's aphorism, "Efficiency often means getting the wrong answer quickly." from their book [The Elements of Programming Style](https://en.wikipedia.org/wiki/The_Elements_of_Programming_Style).
+(Unfortunately, this version doesn't properly account for cases where a character is repeated in the guess - an example of [Kernighan and Plauger's](https://en.wikipedia.org/wiki/The_Elements_of_Programming_Style) aphorism, "Efficiency often means getting the wrong answer quickly."
 We will return to this issue later.)
 
-We won't go into detail about the Julia compiler except to note that compilation is performed for specific *method signatures* not for general method definitions.
+We won't go into detail about the Julia compiler except to note that compilation is performed for specific *method signatures* (or "method instances") not for general method definitions.
 
 There are several functions and macros in Julia that allow for inspection at different stages of compilation.
 One of the most useful is the macro `@code_warntype` which is used to check for situations where type inference has not been successful.
@@ -241,7 +239,7 @@ Using the `@benchmark` macro from the `BenchmarkTools` package gives run times o
 """
 
 # ╔═╡ a69f62bd-ed6d-42e7-8405-9321d13a52d1
-@benchmark score(guess, target) setup = (guess = "arise"; target = "rebus")
+@benchmark score(guess, target) setup=(guess = "arise"; target = "rebus")
 
 # ╔═╡ e4410d39-6680-4eac-9f70-a425df352998
 md"""
@@ -279,6 +277,209 @@ score(('a','r','i','s','e'), ('r','e','b','u','s'))
 	target = ('r','e','b','u','s'),
 )
 
+# ╔═╡ 2b73c7f4-0203-4e2b-b634-eb310152834b
+md"""
+## Repeated characters in the guess
+
+The simple `score` methods shown above don't give the correct score, meaning the score that would be returned on the web site, when there are repeated characters in the guess.
+For example, a guess of `"sheer"` for the target `"super"` is scored as
+"""
+
+# ╔═╡ 79f0ceab-0c9f-42f7-b3ec-a58b5ac1c083
+tiles(score("sheer", "super"), 5)
+
+# ╔═╡ b92abc9c-2a86-47ab-a6e8-127c4d7de52e
+md"""
+but the score should be `"🟩🟫🟫🟩🟩"` because there is only one `e` in the target `"super"`.
+In a case like this where a character occurs multiple times in a guess but only once in the target the rules about which position in the guess is marked are that "correct position" takes precedence over "in the word" and, if none of the guess positions are correct then leftmost takes precedence.
+
+This makes for a considerably more complex score evaluation.
+Essentially there have to be two passes over the score and target - the first to check for correct position and the second to check for "in the target, not in the correct position".
+
+However, the simple check in the current `score` methods works if there are no duplicate characters in the guess.
+Thus it is probably worthwhile checking for duplicates and using the simple scoring algorithm when there are none.
+
+In the [Wordlegames](https://github.com/dmbates/Wordlegames.jl) package these operations are combined in a `scorecolumn!` function that updates a vector of scores on a single guess against a vector of targets.
+
+```jl
+function scorecolumn!(
+    col::AbstractVector{<:Integer},
+    guess::NTuple{N,Char},
+    targets::AbstractVector{NTuple{N,Char}},
+) where {N}
+    if axes(col) ≠ axes(targets)
+        throw(
+            DimensionMismatch(
+                "axes(col) = $(axes(col)) ≠ $(axes(targets)) = axes(targets)",
+            )
+        )
+    end
+    if hasdups(guess)
+        onetoN = (1:N...,)
+        svec = zeros(Int, N)             # scores for characters in guess
+        unused = trues(N)                # has a character in targets[i] been used
+        @inbounds for i in axes(targets, 1)
+            targeti = targets[i]
+            fill!(unused, true)
+            fill!(svec, 0)
+            for j in 1:N                 # first pass for target in same position
+                if guess[j] == targeti[j]
+                    unused[j] = false
+                    svec[j] = 2
+                end
+            end
+            for j in 1:N                 # second pass for match in unused position
+                if iszero(svec[j])
+                    for k in onetoN[unused]
+                        if guess[j] == targeti[k]
+                            svec[j] = 1
+                            unused[k] = false
+                            break
+                        end
+                    end
+                end
+            end
+            sc = 0                       # similar to undup for evaluating score
+            for s in svec
+                sc *= 3
+                sc += s
+            end
+            col[i] = sc
+        end
+    else                                 # simplified alg. for guess w/o duplicates
+        @inbounds for i in axes(targets, 1)
+            sc = 0
+            targeti = targets[i]
+            for j in 1:N
+                sc *= 3
+                gj = guess[j]
+                sc += (gj == targeti[j] ? 2 : gj ∈ targeti)
+            end
+            col[i] = sc
+        end
+    end
+    return col
+end
+```
+
+This is "production code" which has gone through several refinement steps so it may seem a bit daunting at first.
+However, we can break it down.
+
+First, does it give the desired result?
+"""
+
+# ╔═╡ 2f32604f-b64c-47f5-bf14-a3cbde36cc13
+scores1 = zeros(Int, 1)  # initialize a vector of 1 integer to zero 
+
+# ╔═╡ f899d69c-ee68-47e3-963f-90bc401558b2
+scorecolumn!(scores1, ('s','h','e','e','r'), [('s','u','p','e','r')])
+
+# ╔═╡ 643bb3f5-c8e7-446c-b7d4-ea40952c4f59
+tiles(first(scores1), 5)
+
+# ╔═╡ 4742dec1-1a46-4095-bc49-467182beb163
+md"""
+We see that the call to `scorecolumn!` overwrites the contents of the `scores1` vector with the score for the guess on the first (and only) target.
+
+Thus `scorecolumn!` is a "mutating function", meaning that it changes the contents of one or more of its arguments.
+By convention we give such functions names ending in `"!"`, as a warning to the user that the function may mutate its arguments.
+(This is merely a convention; the `"!"` has no syntactic significance.)
+Furthermore, the convention is to list any arguments that may be modified first.
+
+The reason this function is called `scorecolumn!` is because the scores for all possible guesses on all possible targets are evaluated and cached as a matrix in a `GamePool` object.
+This may seem extravagant but most methods for determining an initial guess algorithmically will end up evaluating all these scores so it makes sense to save them in an array.
+In this case the rows correspond to targets and the columns to guesses and evaluating the scores for a single guess against all possible targets updates a column of this matrix.
+
+A section from the upper left corner of this matrix
+"""
+
+# ╔═╡ 225c813a-e63e-44fc-bc08-caf4cf36e21b
+view(wordle.allscores, 1:7, 1:10)
+
+# ╔═╡ 875f7d47-b71f-4f67-90ae-755b00e2b464
+md"""
+shows that the scores, which are in the range `0:242`, are stored as unsigned, 8-bit integers to conserve storage.
+Even so, the storage required is (2315)² bytes, or over 5 megabytes.
+"""
+
+# ╔═╡ 7c6e0762-de57-4041-a683-7ed6f0715057
+Base.summarysize(wordle.allscores)
+
+# ╔═╡ 178cfcd4-e198-4e44-b5bd-7da6c8b21456
+md"""
+Five megabytes is not a large amount of memory by today's standards, but for games with larger pools of guesses or targets the storage may start to mount up.
+In those cases there is provision for [memory-mapping](https://en.wikipedia.org/wiki/Memory-mapped_file) the array.
+The evaluation of the array is multi-threaded when Julia is running with multiple threads.
+
+The scores in the first column,
+"""
+
+# ╔═╡ 90f09143-4046-4e2f-967e-1df115411b32
+tiles.(view(wordle.allscores, 1:7, 1), 5)
+
+# ╔═╡ 628fb954-e44f-4c6d-af03-c41e9e2894d5
+md"""
+are for the first guess, "aback", against the first 7 targets
+"""
+
+# ╔═╡ c976042e-2e91-401b-acfa-88199c22326c
+[String(collect(t)) for t in view(wordle.targetpool, 1:7)]
+
+# ╔═╡ 197e3fbe-6172-47b8-99c5-c8293223747c
+md"""
+The `scorecolumn!` function itself uses the `axes` function in several places.
+By default Julia uses 1-based indexing but other forms of indexing are allowed.
+(I am obligated at this point to mention [StarWarsArrays](https://github.com/giordano/StarWarsArrays.jl) which begins indexing at 4, 5, 6 then 1, 2, 3 then 7, 8, and 9.)
+
+The call to `axes(targets, 1)` returns the indices in the first (and only) axis of the `target` vector.
+The `col` and `targets` arguments are typed as `AbstractVector`, not `Vector`, because `Vector` is a concrete, specific type and we wish to allow for "vector-like" objects such as a one-dimensional view in a multi-dimensional array.
+
+The call to `scorecolumn!` in the constructor for a `GamePool` is in the code segment
+
+```jl
+    S = scoretype(N)
+    vtargs = view(guesspool, validtargets)
+    allscores = Array{S}(undef, length(vtargs), length(guesspool))
+    Threads.@threads for j in axes(allscores, 2)
+        scorecolumn!(view(allscores, :, j), guesspool[j], vtargs)
+    end
+```
+
+There are two arrays, `svec` and `unused` allocated within the `scorecolumn!` function when guesses have repeated characters.
+These are very small arrays but nonetheless we would want to minimize the number of allocations if feasible.
+This is why the check for duplicate characters is carried out and the allocation of these arrays is done only once per column of `allscores`.
+The allocation is done within the function so that it can be called from multiple threads simultaneously without the threads interfering with each other.
+
+The branch for a guess without duplicates is still much faster than for a guess with duplicate characters but neither case is horribly slow.
+"""
+
+# ╔═╡ de2cac98-2ca9-4d27-8b02-ff152a73df7e
+@benchmark scorecolumn!(col, ('a','r','i','s','e'), $(wordle.guesspool)) setup=(
+ col = zeros(UInt8, length(wordle.guesspool))
+)
+
+# ╔═╡ 04cbc640-70be-402b-8a7e-3e9fc8e2cb00
+md"""
+Notice that there are no allocations of memory when there are no duplicated characters in the guess.
+There are allocations, and consequently some garbage collection (GC), when the guess has duplicated characters.
+"""
+
+# ╔═╡ 01d24948-480d-4eb5-9cc4-7c1e806f22fd
+@benchmark scorecolumn!(col, ('a','b','a','c','k'), $(wordle.guesspool)) setup=(
+ col = zeros(UInt8, length(wordle.guesspool))
+)
+
+# ╔═╡ 2c6d5aa5-7a23-4c67-8ff0-27b95ef58375
+md"""
+## Conclusion
+
+These few examples have introduced, at least in passing, several advanced programming concepts - multi-threading, memory-mapping, control of storage allocation and garbage collection - that one typically would not associate with a dynamically-typed, REPL-based language like Julia.
+
+Of course, all of these facilities are available in compiled languages like C/C++ or Rust but usually without the "rapid development and testing" capability of a language like Julia.
+
+Julia provides a wide range of tools so that a programmer can start at a very simple level, like the original `score` method and refine as needed to reach speeds previously only achievable with compiled, statically-typed languages.
+"""
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -298,7 +499,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.0-beta1"
 manifest_format = "2.0"
-project_hash = "045a6e2c86e27f8d763b85c40450eb9e85eed07e"
+project_hash = "66459c14105781561e8204fe38879ef127b14044"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -677,5 +878,24 @@ version = "16.2.1+1"
 # ╟─1b9261b3-c90c-4db1-9e70-51bf364072b8
 # ╠═1887c091-46a0-4e8c-9a66-2ab17968729c
 # ╠═39202f1a-e7d6-4961-9776-ec67c3fd9743
+# ╟─2b73c7f4-0203-4e2b-b634-eb310152834b
+# ╠═79f0ceab-0c9f-42f7-b3ec-a58b5ac1c083
+# ╟─b92abc9c-2a86-47ab-a6e8-127c4d7de52e
+# ╠═2f32604f-b64c-47f5-bf14-a3cbde36cc13
+# ╠═f899d69c-ee68-47e3-963f-90bc401558b2
+# ╠═643bb3f5-c8e7-446c-b7d4-ea40952c4f59
+# ╟─4742dec1-1a46-4095-bc49-467182beb163
+# ╠═225c813a-e63e-44fc-bc08-caf4cf36e21b
+# ╟─875f7d47-b71f-4f67-90ae-755b00e2b464
+# ╠═7c6e0762-de57-4041-a683-7ed6f0715057
+# ╟─178cfcd4-e198-4e44-b5bd-7da6c8b21456
+# ╠═90f09143-4046-4e2f-967e-1df115411b32
+# ╟─628fb954-e44f-4c6d-af03-c41e9e2894d5
+# ╠═c976042e-2e91-401b-acfa-88199c22326c
+# ╟─197e3fbe-6172-47b8-99c5-c8293223747c
+# ╠═de2cac98-2ca9-4d27-8b02-ff152a73df7e
+# ╟─04cbc640-70be-402b-8a7e-3e9fc8e2cb00
+# ╠═01d24948-480d-4eb5-9cc4-7c1e806f22fd
+# ╟─2c6d5aa5-7a23-4c67-8ff0-27b95ef58375
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
