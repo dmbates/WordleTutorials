@@ -5,11 +5,22 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ 49a44e94-29c0-4004-8d0b-e37008eafc1c
-using BenchmarkTools, PlutoUI,  Wordlegames
+using BenchmarkTools, PlutoUI, Wordlegames
+
+# ╔═╡ f9816eb0-078e-41f2-bf7c-29ed5c663fd0
+# hideall
+title = "Scoring guesses in Wordle";
+
+# ╔═╡ a9678ae8-48c0-4bb9-920d-7de176105bd0
+"""
++++
+title = "$title"
++++
+""" |> Base.Text
 
 # ╔═╡ 4eabf46e-f75c-4b15-8583-6abe17c0fd85
 md"""
-# Scoring guesses in Wordle
+# $title
 
 [Wordle](https://en.wikipedia.org/wiki/Wordle) is a recently developed, extremely popular word game that has already spawned many imitators such as [Primel](https://converged.yt/primel/).
 
@@ -23,9 +34,9 @@ Julia code described in a [Hacker News](https://news.ycombinator.com/) posting t
 In situations like this the Julia community inevitably responds with suggested modifications to make the code run faster.
 Someone joked that we wouldn't be satisfied until we could do that task in less than 1 second, and we did.
 
-The code in this posting can be used to solve a Wordle game very rapidly, as well as related games like Primel.
+The code in these postings can be used to solve a Wordle game very rapidly, as well as related games like Primel.
 
-Before beginning we attach several packages that we will use in this notebook.
+Before beginning we attach some packages that will be used in this notebook.
 """
 
 # ╔═╡ 03b41118-5756-447b-9900-15af37667529
@@ -104,7 +115,9 @@ Using the sample game for Wordle #196 from the Wikipedia page for illustration
 """
 
 # ╔═╡ 9b911b3c-17d5-42d5-b7e5-a4187ce5787c
-PlutoUI.Resource("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Wordle_196_example.svg/440px-Wordle_196_example.svg.png")
+PlutoUI.Resource(
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Wordle_196_example.svg/440px-Wordle_196_example.svg.png",
+)
 
 # ╔═╡ 4d5681f9-56a5-4f83-9b31-810bdef26d98
 md"""
@@ -114,6 +127,8 @@ The player's first guess is "arise" and the response, or score, from the oracle 
 (I'm using 🟫 instead of a gray square because I can't find a gray square Unicode character.)
 
 The second guess is "route" for which the response is 🟩🟫🟨🟫🟨 indicating that the first letter in the guess occurs as the first letter in the target.
+Notice that this guess does not include an "s", which is known to be one of the characters in the target.
+This guess would not be allowed if playing the game under the "Hard Mode" setting.
 
 Of course, the colors are just one way of summarizing the response to a guess.
 Within a computer program it is easier to use an integer to represent each of the 243 = 3⁵ possible scores.
@@ -127,12 +142,12 @@ A function to evaluate this score can be written as
 
 # ╔═╡ db787d98-d2a4-4d4a-8e13-8b61e80e48dd
 function score(guess, target)
-	s = 0
-	for (g, t) in zip(guess, target)
-		s *= 3
-		s += (g == t ? 2 : (g ∈ target))
-	end
-	return s
+    s = 0
+    for (g, t) in zip(guess, target)
+        s *= 3
+        s += (g == t ? 2 : (g ∈ target))
+    end
+    return s
 end
 
 # ╔═╡ e9e23c37-e4d8-4b77-ab6f-264bcba4ebec
@@ -142,7 +157,7 @@ These numeric scores are not on a scale where "smaller is better" or "larger is 
 
 The score is just a way of representing each of the 243 patterns that can be produced.
 
-We can convert back to colored squares if desired using the `tiles` function from the `Wordlegames` package, defined as 
+We can convert back to colored tiles if desired using the `tiles` function from the `Wordlegames` package, defined as 
 ```jl
 function tiles(sc, ntiles)
     result = Char[]       # initialize to an empty array of Char
@@ -153,14 +168,20 @@ function tiles(sc, ntiles)
     return String(reverse(result))
 end
 ```
+"""
 
+# ╔═╡ b0970feb-103d-4560-b577-f611171e8da6
+tiles(31, 5)
+
+# ╔═╡ 39ae1224-9cdf-4d4b-b543-985a5667a601
+md"""
 ## Examining the score function
 
 In the Sherlock Holmes story [The Adventure of Silver Blaze](thttps://en.wikipedia.org/wiki/The_Adventure_of_Silver_Blaze) there is a famous exchange where Holmes remarks on "the curious incident of the dog in the night-time" (see the link).
 The critical clue in the case is not what happened but what didn't happen - the dog didn't bark.
 
-Just as Holmes found it interesting that the dog didn't bark, we should find the functions in this notebook interesting for what they don't include.
-In many functions shown here the arguments aren't given explicit types.
+Just as Holmes found it interesting that the dog didn't bark, we should find some of the functions in this notebook interesting for what they don't include.
+In many of the functions shown here the arguments aren't given explicit types.
 
 Knowing the concrete types of arguments is very important when compiling functions, as is done in Julia, but these functions are written without explicit types.
 
@@ -239,25 +260,25 @@ Using the `@benchmark` macro from the `BenchmarkTools` package gives run times o
 """
 
 # ╔═╡ a69f62bd-ed6d-42e7-8405-9321d13a52d1
-@benchmark score(guess, target) setup=(guess = "arise"; target = "rebus")
+@benchmark score(guess, target) setup = (guess = "arise"; target = "rebus")
 
 # ╔═╡ e4410d39-6680-4eac-9f70-a425df352998
 md"""
 New methods can be defined for a generic function like `score`.
-Typically the reason for this is if, for example, the method can more effectively use information from the type.
+A reason for this could be, for example, that the method can more effectively use information from the type.
 
 For example, the `NTuple{N,Char}` type has exactly `N` characters - information that can be used in a loop where we can turn off bounds checking.
 """
 
 # ╔═╡ a031c3db-6630-4deb-a90d-d2b13202dec6
 function score(guess::NTuple{N,Char}, target::NTuple{N,Char}) where {N}
-	s = 0
-	@inbounds for i in 1:N
-		s *= 3
-		gi = guess[i]
-		s += (gi == target[i] ? 2 : (gi ∈ target))
-	end
-	return s
+    s = 0
+    @inbounds for i = 1:N
+        s *= 3
+        gi = guess[i]
+        s += (gi == target[i] ? 2 : (gi ∈ target))
+    end
+    return s
 end
 
 # ╔═╡ 9e1d6017-f79e-49b5-916e-8e3a9e49ab1d
@@ -269,19 +290,17 @@ This method returns the same result as the other method, only faster.
 """
 
 # ╔═╡ 1887c091-46a0-4e8c-9a66-2ab17968729c
-score(('a','r','i','s','e'), ('r','e','b','u','s'))
+score(('a', 'r', 'i', 's', 'e'), ('r', 'e', 'b', 'u', 's'))
 
 # ╔═╡ 39202f1a-e7d6-4961-9776-ec67c3fd9743
-@benchmark score(guess, target) setup=(
-	guess = ('a','r','i','s','e');
-	target = ('r','e','b','u','s'),
-)
+@benchmark score(guess, target) setup =
+    (guess = ('a', 'r', 'i', 's', 'e'); target = ('r', 'e', 'b', 'u', 's'))
 
 # ╔═╡ 2b73c7f4-0203-4e2b-b634-eb310152834b
 md"""
 ## Repeated characters in the guess
 
-The simple `score` methods shown above don't give the correct score, meaning the score that would be returned on the web site, when there are repeated characters in the guess.
+The simple `score` methods shown above don't give the correct score (meaning the score that would be returned on the web site) when there are repeated characters in the guess.
 For example, a guess of `"sheer"` for the target `"super"` is scored as
 """
 
@@ -291,13 +310,27 @@ tiles(score("sheer", "super"), 5)
 # ╔═╡ b92abc9c-2a86-47ab-a6e8-127c4d7de52e
 md"""
 but the score should be `"🟩🟫🟫🟩🟩"` because there is only one `e` in the target `"super"`.
-In a case like this where a character occurs multiple times in a guess but only once in the target the rules about which position in the guess is marked are that "correct position" takes precedence over "in the word" and, if none of the guess positions are correct then leftmost takes precedence.
+In a case like this where a character occurs multiple times in a guess but only once in the target the rules about which position in the guess is marked are that "correct position" takes precedence over "in the word" and, if none of the guess positions are correct, then leftmost takes precedence.
 
 This makes for a considerably more complex score evaluation.
 Essentially there have to be two passes over the score and target - the first to check for correct position and the second to check for "in the target, not in the correct position".
 
-However, the simple check in the current `score` methods works if there are no duplicate characters in the guess.
-Thus it is probably worthwhile checking for duplicates and using the simple scoring algorithm when there are none.
+However, the simple algorithm in the current `score` methods works if there are no duplicate characters in the guess.
+Thus it is probably worthwhile checking for duplicates, using the simple function
+
+```jl
+function hasdups(guess::NTuple{N,Char}) where {N}
+    @inbounds for i in 1:(N - 1)
+        gi = guess[i]
+        for j in (i + 1):N
+            gi == guess[j] && return true
+        end
+    end
+    return false
+end
+```
+
+and choose the simple scoring algorithm when there are no duplicates.
 
 In the [Wordlegames](https://github.com/dmbates/Wordlegames.jl) package these operations are combined in a `scorecolumn!` function that updates a vector of scores on a single guess against a vector of targets.
 
@@ -316,19 +349,19 @@ function scorecolumn!(
     end
     if hasdups(guess)
         onetoN = (1:N...,)
-        svec = zeros(Int, N)             # scores for characters in guess
-        unused = trues(N)                # has a character in targets[i] been used
+        svec = zeros(Int, N)         # scores for characters in guess
+        unused = trues(N)            # which positions in targets[i] are unused?
         @inbounds for i in axes(targets, 1)
             targeti = targets[i]
-            fill!(unused, true)
-            fill!(svec, 0)
-            for j in 1:N                 # first pass for target in same position
+            fill!(unused, true)      # reset to all unused
+            fill!(svec, 0)           # reset to all guess characters not in target
+            for j = 1:N             # first pass for target in same position
                 if guess[j] == targeti[j]
                     unused[j] = false
                     svec[j] = 2
                 end
             end
-            for j in 1:N                 # second pass for match in unused position
+            for j = 1:N             # second pass for match in unused position
                 if iszero(svec[j])
                     for k in onetoN[unused]
                         if guess[j] == targeti[k]
@@ -339,18 +372,18 @@ function scorecolumn!(
                     end
                 end
             end
-            sc = 0                       # similar to undup for evaluating score
+            sc = 0                  # Horner's method to evaluate the score
             for s in svec
                 sc *= 3
                 sc += s
             end
             col[i] = sc
         end
-    else                                 # simplified alg. for guess w/o duplicates
+    else                            # simplified alg. for guess w/o duplicates
         @inbounds for i in axes(targets, 1)
             sc = 0
             targeti = targets[i]
-            for j in 1:N
+            for j = 1:N
                 sc *= 3
                 gj = guess[j]
                 sc += (gj == targeti[j] ? 2 : gj ∈ targeti)
@@ -372,7 +405,7 @@ First, does it give the desired result?
 scores1 = zeros(Int, 1)  # initialize a vector of 1 integer to zero 
 
 # ╔═╡ f899d69c-ee68-47e3-963f-90bc401558b2
-scorecolumn!(scores1, ('s','h','e','e','r'), [('s','u','p','e','r')])
+scorecolumn!(scores1, ('s', 'h', 'e', 'e', 'r'), [('s', 'u', 'p', 'e', 'r')])
 
 # ╔═╡ 643bb3f5-c8e7-446c-b7d4-ea40952c4f59
 tiles(first(scores1), 5)
@@ -454,9 +487,8 @@ The branch for a guess without duplicates is still much faster than for a guess 
 """
 
 # ╔═╡ de2cac98-2ca9-4d27-8b02-ff152a73df7e
-@benchmark scorecolumn!(col, ('a','r','i','s','e'), $(wordle.guesspool)) setup=(
- col = zeros(UInt8, length(wordle.guesspool))
-)
+@benchmark scorecolumn!(col, ('a', 'r', 'i', 's', 'e'), $(wordle.guesspool)) setup =
+    (col = zeros(UInt8, length(wordle.guesspool)))
 
 # ╔═╡ 04cbc640-70be-402b-8a7e-3e9fc8e2cb00
 md"""
@@ -465,9 +497,8 @@ There are allocations, and consequently some garbage collection (GC), when the g
 """
 
 # ╔═╡ 01d24948-480d-4eb5-9cc4-7c1e806f22fd
-@benchmark scorecolumn!(col, ('a','b','a','c','k'), $(wordle.guesspool)) setup=(
- col = zeros(UInt8, length(wordle.guesspool))
-)
+@benchmark scorecolumn!(col, ('a', 'b', 'a', 'c', 'k'), $(wordle.guesspool)) setup =
+    (col = zeros(UInt8, length(wordle.guesspool)))
 
 # ╔═╡ 2c6d5aa5-7a23-4c67-8ff0-27b95ef58375
 md"""
@@ -489,7 +520,7 @@ Wordlegames = "1cb69566-e1cf-455f-a587-fd79a2e00f5a"
 
 [compat]
 BenchmarkTools = "~1.3.1"
-PlutoUI = "~0.7.35"
+PlutoUI = "~0.7.36"
 Wordlegames = "~0.2.0"
 """
 
@@ -499,7 +530,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.0-beta1"
 manifest_format = "2.0"
-project_hash = "66459c14105781561e8204fe38879ef127b14044"
+project_hash = "2c5a1bbd79e7f6386b6e44c23505b13f57906371"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -536,9 +567,9 @@ version = "0.11.0"
 
 [[deps.Compat]]
 deps = ["Base64", "Dates", "DelimitedFiles", "Distributed", "InteractiveUtils", "LibGit2", "Libdl", "LinearAlgebra", "Markdown", "Mmap", "Pkg", "Printf", "REPL", "Random", "SHA", "Serialization", "SharedArrays", "Sockets", "SparseArrays", "Statistics", "Test", "UUIDs", "Unicode"]
-git-tree-sha1 = "44c37b4636bc54afac5c574d2d02b625349d6582"
+git-tree-sha1 = "96b0bc6c52df76506efc8a441c6cf1adcb1babc4"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "3.41.0"
+version = "3.42.0"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -712,9 +743,9 @@ version = "1.4.1"
 
 [[deps.Parsers]]
 deps = ["Dates"]
-git-tree-sha1 = "13468f237353112a01b2d6b32f3d0f80219944aa"
+git-tree-sha1 = "85b5da0fa43588c75bb1ff986493443f821c70b7"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.2.2"
+version = "2.2.3"
 
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
@@ -723,9 +754,9 @@ version = "1.8.0"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
-git-tree-sha1 = "85bf3e4bd279e405f91489ce518dedb1e32119cb"
+git-tree-sha1 = "2c87c85e397b7ffed5ffec054f532d4edd05d901"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.35"
+version = "0.7.36"
 
 [[deps.PooledArrays]]
 deps = ["DataAPI", "Future"]
@@ -800,10 +831,10 @@ uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
 version = "1.0.1"
 
 [[deps.Tables]]
-deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "TableTraits", "Test"]
-git-tree-sha1 = "bb1064c9a84c52e277f1096cf41434b675cd368b"
+deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "OrderedCollections", "TableTraits", "Test"]
+git-tree-sha1 = "5ce79ce186cc678bbb5c5681ca3379d1ddae11a1"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.6.1"
+version = "1.7.0"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
@@ -849,6 +880,8 @@ version = "16.2.1+1"
 """
 
 # ╔═╡ Cell order:
+# ╟─f9816eb0-078e-41f2-bf7c-29ed5c663fd0
+# ╟─a9678ae8-48c0-4bb9-920d-7de176105bd0
 # ╟─4eabf46e-f75c-4b15-8583-6abe17c0fd85
 # ╠═49a44e94-29c0-4004-8d0b-e37008eafc1c
 # ╟─03b41118-5756-447b-9900-15af37667529
@@ -870,6 +903,8 @@ version = "16.2.1+1"
 # ╠═db787d98-d2a4-4d4a-8e13-8b61e80e48dd
 # ╠═9e1d6017-f79e-49b5-916e-8e3a9e49ab1d
 # ╟─e9e23c37-e4d8-4b77-ab6f-264bcba4ebec
+# ╠═b0970feb-103d-4560-b577-f611171e8da6
+# ╟─39ae1224-9cdf-4d4b-b543-985a5667a601
 # ╠═8a1cc31b-f747-49b4-9860-a2c381d98c44
 # ╟─6830dbd6-edc9-4193-8d73-becf3be3855a
 # ╠═a69f62bd-ed6d-42e7-8405-9321d13a52d1
