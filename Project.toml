@@ -1,6 +1,6 @@
 name = "Tutorials"
 uuid = "e088c1bc-e00f-47bb-8742-48f468c16799"
-authors = ["Rik Huijzer <t.h.huijzer@rug.nl>"]
+authors = ["Douglas Bates <dmbates@gmail.com>"]
 version = "0.1.0"
 
 [deps]
@@ -9,5 +9,5 @@ Franklin = "713c75ef-9fc9-4b05-94a9-213340da978e"
 PlutoStaticHTML = "359b1769-a58e-495b-9770-312e911026ad"
 
 [compat]
-Franklin = "0.10"
+Franklin = "=0.10.70"
 PlutoStaticHTML = "3.3"
