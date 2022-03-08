@@ -158,7 +158,7 @@ These numeric scores are not on a scale where "smaller is better" or "larger is 
 The score is just a way of representing each of the 243 patterns that can be produced.
 
 We can convert back to colored tiles if desired using the `tiles` function from the `Wordlegames` package, defined as 
-```jl
+```julia
 function tiles(sc, ntiles)
     result = Char[]       # initialize to an empty array of Char
     for _ in 1:ntiles     # _ indicates the value of the iterator is not used
@@ -187,7 +187,7 @@ Knowing the concrete types of arguments is very important when compiling functio
 
 Consider the `score` function which we reproduce here
 
-```jl
+```julia
 function score(guess, target)
     s = 0
     for (g, t) in zip(guess, target)
@@ -217,13 +217,13 @@ One of the great advantages of dynamically-typed languages with a REPL (read-eva
 
 The rest of the function is a common pattern - initialize `s`, which will be the result, modify `s` in a loop, and return it.
 The Julia expression
-```jl
+```julia
 s *= 3
 ```
 indicates, as in several other languages, that `s` is to be multiplied by 3 in-place.
 
 An expression like
-```jl
+```julia
 g == t ? 2 : (g  ∈ target)
 ```
 is a *ternary operator* expression (the name comes from the operator taking three arguments).
@@ -248,7 +248,7 @@ We won't go into detail about the Julia compiler except to note that compilation
 There are several functions and macros in Julia that allow for inspection at different stages of compilation.
 One of the most useful is the macro `@code_warntype` which is used to check for situations where type inference has not been successful.
 Applying it as
-```jl
+```julia
 @code_warntype score("arise", "rebus")
 ```
 will show the type inference is based on concrete types (`String`) for the arguments.
@@ -318,7 +318,7 @@ Essentially there have to be two passes over the score and target - the first to
 However, the simple algorithm in the current `score` methods works if there are no duplicate characters in the guess.
 Thus it is probably worthwhile checking for duplicates, using the simple function
 
-```jl
+```julia
 function hasdups(guess::NTuple{N,Char}) where {N}
     @inbounds for i in 1:(N - 1)
         gi = guess[i]
@@ -334,7 +334,7 @@ and choose the simple scoring algorithm when there are no duplicates.
 
 In the [Wordlegames](https://github.com/dmbates/Wordlegames.jl) package these operations are combined in a `scorecolumn!` function that updates a vector of scores on a single guess against a vector of targets.
 
-```jl
+```julia
 function scorecolumn!(
     col::AbstractVector{<:Integer},
     guess::NTuple{N,Char},
@@ -469,7 +469,7 @@ The `col` and `targets` arguments are typed as `AbstractVector`, not `Vector`, b
 
 The call to `scorecolumn!` in the constructor for a `GamePool` is in the code segment
 
-```jl
+```julia
     S = scoretype(N)
     vtargs = view(guesspool, validtargets)
     allscores = Array{S}(undef, length(vtargs), length(guesspool))
