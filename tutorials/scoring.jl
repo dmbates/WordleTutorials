@@ -355,7 +355,7 @@ function scorecolumn!(
             targeti = targets[i]
             fill!(unused, true)      # reset to all unused
             fill!(svec, 0)           # reset to all guess characters not in target
-            for j = 1:N             # first pass for target in same position
+            for j = 1:N              # first pass for target in same position
                 if guess[j] == targeti[j]
                     unused[j] = false
                     svec[j] = 2
