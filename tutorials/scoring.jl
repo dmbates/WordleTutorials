@@ -51,7 +51,7 @@ The original target pool is available with the `Wordlegames` package.  (Apparent
 """
 
 # ╔═╡ 73e3e38b-0935-4ef9-97b1-8a8cdfa2feb7
-datadir = joinpath(dirname(dirname(pathof(Wordlegames))), "data");
+datadir = joinpath(pkgdir(Wordlegames), "data");
 
 # ╔═╡ 4c5e781c-fd10-425f-95d2-1fec5bf1015f
 wordlestrings = collect(readlines(joinpath(datadir, "Wordletargets.txt")))
