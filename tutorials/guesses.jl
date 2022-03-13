@@ -6,13 +6,14 @@ using InteractiveUtils
 
 # ╔═╡ e254cb71-9bb3-4cbc-80be-a8862f81fd9c
 begin
-    using CairoMakie   # graphics package
-    using Chain        # pipes but more sophisticated
-    using DataFrameMacros # more convenient syntax for df operations
+    using CairoMakie      # graphics package
+    using Chain           # sophisticated pipes
+    using DataFrameMacros # convenient syntax for df operations
     using DataFrames
-    using PlutoUI
-    using Primes
-    using StatsBase
+    using PlutoUI         # User Interface components
+    using Primes          # prime numbers
+    using Random          # random number generation
+    using StatsBase       # basic statistical summaries
     using Wordlegames
 end
 
@@ -21,11 +22,11 @@ end
 title = "Selection of guesses";
 
 # ╔═╡ ea9f2405-b658-47c7-a8ac-540f379e9ac5
-"""
-+++
-title = "$title"
-+++
-""" |> Base.Text
+Base.Text.("""
+           +++
+           title = "$title"
+           +++
+           """)
 
 
 # ╔═╡ 44913684-7099-401b-8dcd-e0e84c5c1384
@@ -58,7 +59,7 @@ To verify this, first create a `GamePool` from the wordle targets.
 
 # ╔═╡ b8e51a88-9fa0-476e-9e87-5d5e137a9720
 begin
-    datadir = joinpath(dirname(dirname(pathof(Wordlegames))), "data")
+    datadir = joinpath(pkgdir(Wordlegames), "data")
     wordle = GamePool(collect(readlines(joinpath(datadir, "Wordletargets.txt"))))
 end;
 
@@ -72,25 +73,30 @@ only(findall(x -> x == ('a', 'r', 'i', 's', 'e'), wordle.guesspool))
 
 # ╔═╡ c9270bda-e8fa-44af-8863-5b245a352f48
 md"""
-Here, `findall` returns a vector of all positions in `wordle.guesspool` that return `true` from the anonymous function checking if it is the `NTuple{5,Char}` `('a', 'r', 'i', 's', 'e')` and returning the indexes of these matches.
+Here, `findall` returns a vector of all positions in `wordle.guesspool` that return `true` from the anonymous function checking if the argument, `x`, is equal to `('a', 'r', 'i', 's', 'e')`.
 The `only` function checks that there is only one such index and, if so, returns it.
 
+The anonymous function to compare an element of `wordle.guesspool` to `('a','r','i','s','e')` can be written more compactly as `==(('a','r','i','s','e'))`.
+
+The score for the guess `"arise"` on the target `"rebus"` is 31 as a decimal number.
+"""
+
+# ╔═╡ 56692b81-b1b2-4449-8274-9faa55e8db50
+Int(wordle.allscores[only(findall(==(('r', 'e', 'b', 'u', 's')), wordle.guesspool)), 106])
+
+# ╔═╡ d3480b1c-a472-4cdf-9d48-46507a17623e
+md"""
 Next, check how many of the pre-computed scores in the 106th column of `wordle.allscores` are equal to 31.
 """
 
 # ╔═╡ 42b52872-38dd-4976-88c8-600e55a33c6a
-sum(x -> x == 31, view(wordle.allscores, :, 106))
+sum(==(31), view(wordle.allscores, :, 106))
 
 # ╔═╡ ed459468-f112-494f-bec1-26ba72895db8
 md"""
 A `view` provides access to a subarray of an array without copying the contents.
 In this case the subarray is all the rows (the `:` argument in the rows position) and the 106th column.
-
-The anonymous function `x -> x == 31` could also be written as `==(31)`.
 """
-
-# ╔═╡ 21ee7ef0-471c-449c-9f99-75e5c8e3bcf5
-sum(==(31), view(wordle.allscores, :, 106))
 
 # ╔═╡ 526fa04e-4367-4736-8e30-96602b195af1
 md"""
@@ -139,6 +145,34 @@ barplot(df106.counts)
 md"""
 The `Wordlegames` package provides two algorithms of choosing a guess based on the distribution of the scores.
 
+```julia
+function optimalguess(gp::GamePool{N,S,MaximizeEntropy}) where {N,S}
+    gind, xpctd, entrpy = 0, Inf, -Inf
+    for (k, a) in enumerate(gp.active)
+        if a
+            thisentropy = entropy2(bincounts!(gp, k))
+            if thisentropy > entrpy
+                gind, xpctd, entrpy = k, expectedpoolsize(gp), thisentropy
+            end
+        end
+    end
+    return gind, xpctd, entrpy
+end
+
+function optimalguess(gp::GamePool{N,S,MinimizeExpected}) where {N,S}
+    gind, xpctd, entrpy = 0, Inf, -Inf
+    for (k, a) in enumerate(gp.active)
+        if a
+            thisexpected = expectedpoolsize(bincounts!(gp, k))
+            if thisexpected < xpctd
+                gind, xpctd, entrpy = k, thisexpected, entropy2(gp)
+            end
+        end
+    end
+    return gind, xpctd, entrpy
+end
+```
+
 The first method is to maximize the [entropy](https://en.wikipedia.org/wiki/Entropy_(information_theory)) of the distribution, which is an information-theory concept that measures how "spread out" the distribution is.
 It depends only on the probabilities of the scores, not on the scores themselves.
 The base-2 entropy, measured in bits, of a discrete distribution with probabilities ``p_i, i=1,\dots,n`` is defined as
@@ -148,6 +182,18 @@ H_2(X) = - \sum_{i=1}^n p_i\,\log_2(p_i)
 ```
 
 The `Wordlegames` package exports the `entropy2` function that returns this quantity from the current `counts`.
+```julia
+function entropy2(counts::AbstractVector{<:Real})
+    countsum = sum(counts)
+    return -sum(counts) do k
+        x = k / countsum
+        xlogx = x * log(x)
+        iszero(x) ? zero(xlogx) : xlogx
+    end / log(2)
+end
+
+entropy2(gp::GamePool) = entropy2(gp.counts)
+```
 """
 
 # ╔═╡ 663ce631-3a5d-494f-b138-3b8a675775f5
@@ -161,7 +207,15 @@ entropy2(bincounts!(wordle, 106))
 
 # ╔═╡ 93c5e3e5-9910-4d5e-914c-81a4c70071c5
 md"""
-Roughly, this means that the distribution of target pool sizes after an initial guess of `"arise"` is, according to this measure, about as spread out as a uniform distribution on 56.5 possible responses.
+The
+```julia
+... do k
+   ...
+end
+```
+block, called a "thunk", in this code - yet another way of writing an anonymous function - is described later.
+
+Roughly, the numerical result means that the distribution of target pool sizes after an initial guess of `"arise"` is, according to this measure, about as spread out as a uniform distribution on 56.5 possible responses.
 """
 
 # ╔═╡ bf1ac53f-81e1-4a00-a7ea-79cb7d47f4d9
@@ -170,7 +224,15 @@ Roughly, this means that the distribution of target pool sizes after an initial 
 # ╔═╡ f7eadde6-7809-412b-925d-cc114490b948
 md"""
 The second method is to minimize the expected pool size after the guess is scored.
-Again, this only depends on the counts for the bins.
+
+By definition this is the sum of the bin size (or count) for each of the bins multiplied by the probability of the target being in the bin.
+But that probability is the bin size divided by the total number of active targets.
+Thus the expected pool size after the guess can be evaluated from the bin sizes alone.
+```julia
+function expectedpoolsize(gp::GamePool)
+    return sum(abs2, gp.counts) / sum(gp.counts)
+end
+```
 """
 
 # ╔═╡ 3759d196-84e6-4dbb-9fed-e42b7e600bf3
@@ -194,9 +256,9 @@ On average it will reduce the target pool size from 2315 to 63.73.
 md"""
 ## The best initial guess?
 
-We can choose an initial guess (and, also, subsequent guesses) to maximize the entropy of the distribution of scores or to minimize the expected pool size after the guess is scored.
+We can choose an initial guess (and, also, subsequent guesses) to maximize the entropy of the distribution of scores or to minimize the expected pool size for the next guess.
 
-For both of these criteria, a slight modification on `"arise"`, exchanging the first two letters to form `"raise"`, at index 1535, does a bit better.
+For both of these criteria, a slight modification on `"arise"`, exchanging the first two letters to form `"raise"`, at index 1535, is a bit better than `"arise"`.
 """
 
 # ╔═╡ ff1bd84f-8c1d-4625-adc3-a85c33dad8b3
@@ -210,7 +272,7 @@ expectedpoolsize(wordle)
 
 # ╔═╡ 12b2d119-1b20-4480-bd03-1b8aae8b8414
 md"""
-Furthermore, `"raise"` is the best initial guess for both of these criteria, if we restrict outselves to guesses from the initial target pool.
+It turns out that `"raise"` is the best initial guess for both of these criteria, if we restrict outselves to guesses from the initial target pool.
 
 One of the parameters of the `GamePool` type is the method of choosing the next guess, either `MaximizeEntropy`, the default, or `MinimizeExpected`,
 """
@@ -246,6 +308,7 @@ showgame!(wordle, "watch")
 # ╔═╡ 26c90826-f132-462c-9220-37477308777f
 md"""
 but it is not clear that any other strategy will be more successful across all possible targets.
+(This target did occur on the official Wordle web site in March of 2022.)
 
 To play by the `MinimizeExpected` strategy requires specifying this as the `guesstype` when creating the `GamePool`.
 """
@@ -272,7 +335,7 @@ However, if we play all possible games using each of the two strategies and coun
 # ╔═╡ 1e7f6b4c-13cb-48b0-a5f9-c0dadaf40b6b
 gamelen = let
     inds = axes(wordle.targetpool, 1)
-    DataFrame(
+    DataFrame(;
         index=inds,
         entropy=[length(playgame!(wordle, k).guesses) for k in inds],
         expected=[length(playgame!(wordlexpct, k).guesses) for k in inds],
@@ -309,7 +372,7 @@ gamelengths = let
     entropy = countmap(gamelen.entropy)
     expected = countmap(gamelen.expected)
     allcounts = 1:maximum(union(keys(entropy), keys(expected)))
-    DataFrame(
+    DataFrame(;
         count=allcounts,
         entropy=[get!(entropy, k, 0) for k in allcounts],
         expected=[get!(expected, k, 0) for k in allcounts],
@@ -319,6 +382,80 @@ end
 # ╔═╡ 46d872d4-fed2-419f-9f48-4a506a4680ff
 let
     stacked = stack(gamelengths, 2:3)
+    typeint = [(v == "entropy" ? 1 : 2) for v in stacked.variable]
+    barplot(
+        stacked.count,
+        stacked.value;
+        dodge=typeint,
+        color=typeint,
+        axis=(yticks=1:8, ylabel="Game length"),
+        direction=:x,
+    )
+end
+
+# ╔═╡ 3290f3e7-c188-42e7-ab61-bc9a246c051f
+md"""
+## Wordle-like games
+
+Wordle has spawned many similar games, one of which is [Primel](https://converged.yt/primel), for which the targets are 5-digit prime numbers.
+Because leading zeros are not allowed in these primes, the targets are prime numbers between 10,000 and 99,999.
+"""
+
+# ╔═╡ c1add535-051a-4e01-8f11-a1f669222a41
+primel = GamePool(primes(10_000, 99_999));  # underscores are ignored in numbers
+
+# ╔═╡ 44a74cf2-2691-47ca-b8a7-c0ab642c6015
+md"""
+To play a game with a random, but reproducible, target, we initialize a random number generator and pass it as the second argument to `showgame!`.
+"""
+
+# ╔═╡ 5928ecb5-47de-4961-a227-5529a65b8d69
+showgame!(primel, Random.seed!(1234321))
+
+# ╔═╡ 7eaac2d9-ad3a-49aa-89a2-dcf3f1309781
+md"The size of the target pool is larger than for Wordle"
+
+# ╔═╡ b2cd9705-fe32-48de-bf25-61b3df7f0e6f
+length(primel.targetpool)
+
+# ╔═╡ d0c0f1c9-a095-4c01-a38f-c2d11b9485f2
+md"""
+but the number of possible characters at each position (9 for the first position, 10 for the others) is smaller than for Wordle, leading to a larger mean number of guesses but a smaller standard deviation in the number of guesses.
+
+As for Wordle, the strategy of choosing guesses to minimize the expected pool size is less effective than maximizing the entropy.
+"""
+
+# ╔═╡ dc64865f-3950-4ccf-80c7-bd3c4c5a35ad
+primelxpectd = GamePool(primes(10_000, 99_999); guesstype=MinimizeExpected);
+
+# ╔═╡ 25d6cf22-d929-4ab1-bf89-07ee2162ae00
+allprimel = let
+    inds = 1:length(primel.targetpool)
+    DataFrame(;
+        index=inds,
+        entropy=[length(playgame!(primel, k).guesses) for k in inds],
+        expected=[length(playgame!(primelxpectd, k).guesses) for k in inds],
+    )
+end
+
+# ╔═╡ 24c9265b-65b1-4936-8ae9-089a7de659a0
+primelengths = let
+    entropy = countmap(allprimel.entropy)
+    expected = countmap(allprimel.expected)
+    allcounts = 1:maximum(union(keys(entropy), keys(expected)))
+    DataFrame(;
+        count=allcounts,
+        entropy=[get!(entropy, k, 0) for k in allcounts],
+        expected=[get!(expected, k, 0) for k in allcounts],
+    )
+end
+
+# ╔═╡ f614bb07-8369-4f23-a24d-3737ab840e7a
+describe(allprimel[!, Not(1)], :min, :max, :mean, :std)
+
+# ╔═╡ 57588d15-32f7-4d03-9ba0-42373246a3c4
+let
+    stacked = stack(primelengths, 2:3)
     typeint = [(v == "entropy" ? 1 : 2) for v in stacked.variable]
     barplot(
         stacked.count,
@@ -351,7 +488,7 @@ As a "splat" the ellipsis expands an argument such as a vector or, in this case,
 
 Another fun name for a construct is a "thunk", which is a way of specifying an anonymous function.
 For example there are two methods defined for the `entropy2` generic
-```jl
+```julia
 function entropy2(counts::AbstractVector{<:Real})
     countsum = sum(counts)
     return -sum(counts) do k
@@ -401,6 +538,7 @@ DataFrameMacros = "75880514-38bc-4a95-a458-c2aea5a3a702"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Primes = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Wordlegames = "1cb69566-e1cf-455f-a587-fd79a2e00f5a"
 
@@ -421,7 +559,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.0-beta1"
 manifest_format = "2.0"
-project_hash = "195058e37ee1578b1e786eba7d602853c8ca43b4"
+project_hash = "d369fc825d6f3a628b25a96e4c30bf57f2a3fcb5"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
@@ -1663,9 +1801,10 @@ version = "3.5.0+0"
 # ╟─40100de5-4543-47ad-a0bf-7d69630b15d0
 # ╠═9e9ebaa5-47f4-4c44-ab59-ef2940555756
 # ╟─c9270bda-e8fa-44af-8863-5b245a352f48
+# ╠═56692b81-b1b2-4449-8274-9faa55e8db50
+# ╟─d3480b1c-a472-4cdf-9d48-46507a17623e
 # ╠═42b52872-38dd-4976-88c8-600e55a33c6a
 # ╟─ed459468-f112-494f-bec1-26ba72895db8
-# ╠═21ee7ef0-471c-449c-9f99-75e5c8e3bcf5
 # ╟─526fa04e-4367-4736-8e30-96602b195af1
 # ╠═752b02ae-54be-408e-b527-0158f7d29ec1
 # ╟─d2162f9f-8d62-4f4a-b15a-b6d6b30dfe54
@@ -1712,6 +1851,18 @@ version = "3.5.0+0"
 # ╟─73cce00b-caf8-44d7-81ad-0047c9df767d
 # ╠═6ba0f36f-3ce6-4c6c-a051-4ec82348715f
 # ╟─46d872d4-fed2-419f-9f48-4a506a4680ff
+# ╟─3290f3e7-c188-42e7-ab61-bc9a246c051f
+# ╠═c1add535-051a-4e01-8f11-a1f669222a41
+# ╟─44a74cf2-2691-47ca-b8a7-c0ab642c6015
+# ╠═5928ecb5-47de-4961-a227-5529a65b8d69
+# ╟─7eaac2d9-ad3a-49aa-89a2-dcf3f1309781
+# ╠═b2cd9705-fe32-48de-bf25-61b3df7f0e6f
+# ╟─d0c0f1c9-a095-4c01-a38f-c2d11b9485f2
+# ╠═dc64865f-3950-4ccf-80c7-bd3c4c5a35ad
+# ╠═25d6cf22-d929-4ab1-bf89-07ee2162ae00
+# ╠═24c9265b-65b1-4936-8ae9-089a7de659a0
+# ╠═f614bb07-8369-4f23-a24d-3737ab840e7a
+# ╟─57588d15-32f7-4d03-9ba0-42373246a3c4
 # ╟─7f16af27-5e82-4238-a3c6-87085f008441
 # ╠═75eb4f51-1079-4645-88c4-6d4e84a5e240
 # ╠═d0197836-458b-4cff-9b53-da2d61b0af13

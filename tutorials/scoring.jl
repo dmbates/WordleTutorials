@@ -12,11 +12,11 @@ using BenchmarkTools, PlutoUI, Wordlegames
 title = "Scoring guesses in Wordle";
 
 # ╔═╡ a9678ae8-48c0-4bb9-920d-7de176105bd0
-"""
-+++
-title = "$title"
-+++
-""" |> Base.Text
+Base.Text.("""
+           +++
+           title = "$title"
+           +++
+           """)
 
 # ╔═╡ 4eabf46e-f75c-4b15-8583-6abe17c0fd85
 md"""
@@ -145,7 +145,7 @@ function score(guess, target)
     s = 0
     for (g, t) in zip(guess, target)
         s *= 3
-        s += (g == t ? 2 : (g ∈ target))
+        s += (g == t) ? 2 : Int(g ∈ target)
     end
     return s
 end
@@ -192,7 +192,7 @@ function score(guess, target)
     s = 0
     for (g, t) in zip(guess, target)
         s *= 3
-        s += (g == t ? 2 : (g ∈ target))
+        s += (g == t) ? 2 : Int(g ∈ target)
     end
     return s
 end
@@ -224,14 +224,14 @@ indicates, as in several other languages, that `s` is to be multiplied by 3 in-p
 
 An expression like
 ```julia
-g == t ? 2 : (g  ∈ target)
+(g == t) ? 2 : Int(g  ∈ target)
 ```
-is a *ternary operator* expression (the name comes from the operator taking three arguments).
+is a *ternary operator* expression (the name comes from the operator taking three operands).
 It evaluates the condition, `g == t`, and returns `2` if the condition is `true`.
-If `g == t` is `false` the operator returns the value of the Boolean expression `g  ∈ target`.
+If `g == t` is `false` the operator returns the value of the Boolean expression `g  ∈ target`, converted to an `Int`.
 (The expression could also be written `g in target`.
 In the Julia REPL the `∈` character is created by typing `\in<tab>`.)
-The Boolean expression will return `false` or `true`, which will be promoted to `0` or `1` for the `+=` operation.
+The Boolean expression will return `false` or `true`, which is promoted to `0` or `1` for the `+=` operation.
 
 The operation of multiplying by 3 and adding 2 or 1 or 0 is an implementation of [Horner's method](https://en.wikipedia.org/wiki/Horner%27s_method) for evaluating a polynomial.
 
@@ -249,9 +249,24 @@ There are several functions and macros in Julia that allow for inspection at dif
 One of the most useful is the macro `@code_warntype` which is used to check for situations where type inference has not been successful.
 Applying it as
 ```julia
-@code_warntype score("arise", "rebus")
+julia> @code_warntype score("arise", "rebus")
+MethodInstance for score(::String, ::String)
+  from score(guess, target) in Main at REPL[1]:1
+Arguments
+  #self#::Core.Const(score)
+  guess::String
+  target::String
+Locals
+  @_4::Union{Nothing, Tuple{Tuple{Char, Char}, Tuple{Int64, Int64}}}
+  s::Int64
+  @_6::Int64
+  t::Char
+  g::Char
+  @_9::Int64
+Body::Int64
+...
 ```
-will show the type inference is based on concrete types (`String`) for the arguments.
+shows that type inference is based on concrete types (`String`) for the arguments.
 
 Some argument types are handled more efficiently than others.
 Without going in to details we note that we can take advantage of the fact that we have exactly 5 characters and convert the elements of `words` from `String` to `NTuple{5,Char}`, which is an ordered, fixed-length homogeneous collection.
@@ -276,7 +291,7 @@ function score(guess::NTuple{N,Char}, target::NTuple{N,Char}) where {N}
     @inbounds for i = 1:N
         s *= 3
         gi = guess[i]
-        s += (gi == target[i] ? 2 : (gi ∈ target))
+        s += (gi == target[i]) ? 2 : Int(gi ∈ target)
     end
     return s
 end
@@ -348,9 +363,9 @@ function scorecolumn!(
         )
     end
     if hasdups(guess)
-        onetoN = (1:N...,)
+        onetoN = (1:N...,)           # 1:N as a Tuple
         svec = zeros(Int, N)         # scores for characters in guess
-        unused = trues(N)            # which positions in targets[i] are unused?
+        unused = trues(N)            # unused positions in targets[i]
         @inbounds for i in axes(targets, 1)
             targeti = targets[i]
             fill!(unused, true)      # reset to all unused
@@ -361,7 +376,7 @@ function scorecolumn!(
                     svec[j] = 2
                 end
             end
-            for j = 1:N             # second pass for match in unused position
+            for j = 1:N              # second pass for match in unused position
                 if iszero(svec[j])
                     for k in onetoN[unused]
                         if guess[j] == targeti[k]
@@ -372,21 +387,21 @@ function scorecolumn!(
                     end
                 end
             end
-            sc = 0                  # Horner's method to evaluate the score
+            sc = 0                   # Horner's method to evaluate the score
             for s in svec
                 sc *= 3
                 sc += s
             end
             col[i] = sc
         end
-    else                            # simplified alg. for guess w/o duplicates
+    else                             # simplified alg. for guess w/o duplicates
         @inbounds for i in axes(targets, 1)
             sc = 0
             targeti = targets[i]
             for j = 1:N
                 sc *= 3
                 gj = guess[j]
-                sc += (gj == targeti[j] ? 2 : gj ∈ targeti)
+                sc += (gj == targeti[j]) ? 2 : Int(gj ∈ targeti)
             end
             col[i] = sc
         end
