@@ -16,7 +16,7 @@ Base.Text.("""
            +++
            title = "$title"
            +++
-           """)
+           """);
 
 # ╔═╡ 4eabf46e-f75c-4b15-8583-6abe17c0fd85
 md"""
