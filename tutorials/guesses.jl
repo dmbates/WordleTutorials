@@ -22,11 +22,11 @@ end
 title = "Selection of guesses";
 
 # ╔═╡ ea9f2405-b658-47c7-a8ac-540f379e9ac5
-Base.Text.("""
-           +++
-           title = "$title"
-           +++
-           """);
+"""
++++
+title = "$title"
++++
+""" |> Base.Text
 
 
 # ╔═╡ 44913684-7099-401b-8dcd-e0e84c5c1384

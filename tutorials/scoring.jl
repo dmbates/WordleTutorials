@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.18.1
+# v0.18.2
 
 using Markdown
 using InteractiveUtils
@@ -12,11 +12,11 @@ using BenchmarkTools, PlutoUI, Wordlegames
 title = "Scoring guesses in Wordle";
 
 # ╔═╡ a9678ae8-48c0-4bb9-920d-7de176105bd0
-Base.Text.("""
-           +++
-           title = "$title"
-           +++
-           """);
+"""
++++
+title = "$title"
++++
+""" |> Base.Text
 
 # ╔═╡ 4eabf46e-f75c-4b15-8583-6abe17c0fd85
 md"""
@@ -274,9 +274,6 @@ Without going in to details we note that we can take advantage of the fact that 
 Using the `@benchmark` macro from the `BenchmarkTools` package gives run times of a few tens of nanoseconds for these arguments, and shows that the function applied to the fixed-length collections is faster.
 """
 
-# ╔═╡ a69f62bd-ed6d-42e7-8405-9321d13a52d1
-@benchmark score(guess, target) setup = (guess = "arise"; target = "rebus")
-
 # ╔═╡ e4410d39-6680-4eac-9f70-a425df352998
 md"""
 New methods can be defined for a generic function like `score`.
@@ -306,10 +303,6 @@ This method returns the same result as the other method, only faster.
 
 # ╔═╡ 1887c091-46a0-4e8c-9a66-2ab17968729c
 score(('a', 'r', 'i', 's', 'e'), ('r', 'e', 'b', 'u', 's'))
-
-# ╔═╡ 39202f1a-e7d6-4961-9776-ec67c3fd9743
-@benchmark score(guess, target) setup =
-    (guess = ('a', 'r', 'i', 's', 'e'); target = ('r', 'e', 'b', 'u', 's'))
 
 # ╔═╡ 2b73c7f4-0203-4e2b-b634-eb310152834b
 md"""
@@ -501,19 +494,11 @@ The allocation is done within the function so that it can be called from multipl
 The branch for a guess without duplicates is still much faster than for a guess with duplicate characters but neither case is horribly slow.
 """
 
-# ╔═╡ de2cac98-2ca9-4d27-8b02-ff152a73df7e
-@benchmark scorecolumn!(col, ('a', 'r', 'i', 's', 'e'), $(wordle.guesspool)) setup =
-    (col = zeros(UInt8, length(wordle.guesspool)))
-
 # ╔═╡ 04cbc640-70be-402b-8a7e-3e9fc8e2cb00
 md"""
 Notice that there are no allocations of memory when there are no duplicated characters in the guess.
 There are allocations, and consequently some garbage collection (GC), when the guess has duplicated characters.
 """
-
-# ╔═╡ 01d24948-480d-4eb5-9cc4-7c1e806f22fd
-@benchmark scorecolumn!(col, ('a', 'b', 'a', 'c', 'k'), $(wordle.guesspool)) setup =
-    (col = zeros(UInt8, length(wordle.guesspool)))
 
 # ╔═╡ 2c6d5aa5-7a23-4c67-8ff0-27b95ef58375
 md"""
@@ -525,6 +510,21 @@ Of course, all of these facilities are available in compiled languages like C/C+
 
 Julia provides a wide range of tools so that a programmer can start at a very simple level, like the original `score` method and refine as needed to reach speeds previously only achievable with compiled, statically-typed languages.
 """
+
+# ╔═╡ 39202f1a-e7d6-4961-9776-ec67c3fd9743
+@benchmark score(guess, target) setup =
+    (guess = ('a', 'r', 'i', 's', 'e'); target = ('r', 'e', 'b', 'u', 's'))
+
+# ╔═╡ 01d24948-480d-4eb5-9cc4-7c1e806f22fd
+@benchmark scorecolumn!(col, ('a', 'b', 'a', 'c', 'k'), $(wordle.guesspool)) setup =
+    (col = zeros(UInt8, length(wordle.guesspool)))
+
+# ╔═╡ de2cac98-2ca9-4d27-8b02-ff152a73df7e
+@benchmark scorecolumn!(col, ('a', 'r', 'i', 's', 'e'), $(wordle.guesspool)) setup =
+    (col = zeros(UInt8, length(wordle.guesspool)))
+
+# ╔═╡ a69f62bd-ed6d-42e7-8405-9321d13a52d1
+@benchmark score(guess, target) setup = (guess = "arise"; target = "rebus")
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
