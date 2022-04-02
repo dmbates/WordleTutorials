@@ -1,0 +1,4 @@
+Sitemap: https://dmbates.github.io/WordleTutorials/sitemap.xml
+
+User-agent: *
+Disallow:
