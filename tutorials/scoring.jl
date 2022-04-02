@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.18.2
+# v0.18.4
 
 using Markdown
 using InteractiveUtils
@@ -127,7 +127,7 @@ The player's first guess is "arise" and the response, or score, from the oracle 
 (I'm using 🟫 instead of a gray square because I can't find a gray square Unicode character.)
 
 The second guess is "route" for which the response is 🟩🟫🟨🟫🟨 indicating that the first letter in the guess occurs as the first letter in the target.
-Notice that this guess does not include an "s", which is known to be one of the characters in the target.
+Notice that this guess does not include an "s", which is known from the score of the first guess to be one of the characters in the target.
 This guess would not be allowed if playing the game under the "Hard Mode" setting.
 
 Of course, the colors are just one way of summarizing the response to a guess.
@@ -296,6 +296,9 @@ end
 # ╔═╡ 9e1d6017-f79e-49b5-916e-8e3a9e49ab1d
 score("arise", "rebus")
 
+# ╔═╡ a69f62bd-ed6d-42e7-8405-9321d13a52d1
+@benchmark score(guess, target) setup = (guess = "arise"; target = "rebus")
+
 # ╔═╡ 1b9261b3-c90c-4db1-9e70-51bf364072b8
 md"""
 This method returns the same result as the other method, only faster.
@@ -303,6 +306,10 @@ This method returns the same result as the other method, only faster.
 
 # ╔═╡ 1887c091-46a0-4e8c-9a66-2ab17968729c
 score(('a', 'r', 'i', 's', 'e'), ('r', 'e', 'b', 'u', 's'))
+
+# ╔═╡ 39202f1a-e7d6-4961-9776-ec67c3fd9743
+@benchmark score(guess1, target1) setup =
+    (guess1 = ('a', 'r', 'i', 's', 'e'); target1 = ('r', 'e', 'b', 'u', 's'))
 
 # ╔═╡ 2b73c7f4-0203-4e2b-b634-eb310152834b
 md"""
@@ -494,11 +501,19 @@ The allocation is done within the function so that it can be called from multipl
 The branch for a guess without duplicates is still much faster than for a guess with duplicate characters but neither case is horribly slow.
 """
 
+# ╔═╡ de2cac98-2ca9-4d27-8b02-ff152a73df7e
+@benchmark scorecolumn!(col, ('a', 'r', 'i', 's', 'e'), $(wordle.guesspool)) setup =
+    (col = zeros(UInt8, length(wordle.guesspool)))
+
 # ╔═╡ 04cbc640-70be-402b-8a7e-3e9fc8e2cb00
 md"""
 Notice that there are no allocations of memory when there are no duplicated characters in the guess.
 There are allocations, and consequently some garbage collection (GC), when the guess has duplicated characters.
 """
+
+# ╔═╡ 01d24948-480d-4eb5-9cc4-7c1e806f22fd
+@benchmark scorecolumn!(col1, ('a', 'b', 'a', 'c', 'k'), $(wordle.guesspool)) setup =
+    (col1 = zeros(UInt8, length(wordle.guesspool)))
 
 # ╔═╡ 2c6d5aa5-7a23-4c67-8ff0-27b95ef58375
 md"""
@@ -511,21 +526,6 @@ Of course, all of these facilities are available in compiled languages like C/C+
 Julia provides a wide range of tools so that a programmer can start at a very simple level, like the original `score` method and refine as needed to reach speeds previously only achievable with compiled, statically-typed languages.
 """
 
-# ╔═╡ 39202f1a-e7d6-4961-9776-ec67c3fd9743
-@benchmark score(guess, target) setup =
-    (guess = ('a', 'r', 'i', 's', 'e'); target = ('r', 'e', 'b', 'u', 's'))
-
-# ╔═╡ 01d24948-480d-4eb5-9cc4-7c1e806f22fd
-@benchmark scorecolumn!(col, ('a', 'b', 'a', 'c', 'k'), $(wordle.guesspool)) setup =
-    (col = zeros(UInt8, length(wordle.guesspool)))
-
-# ╔═╡ de2cac98-2ca9-4d27-8b02-ff152a73df7e
-@benchmark scorecolumn!(col, ('a', 'r', 'i', 's', 'e'), $(wordle.guesspool)) setup =
-    (col = zeros(UInt8, length(wordle.guesspool)))
-
-# ╔═╡ a69f62bd-ed6d-42e7-8405-9321d13a52d1
-@benchmark score(guess, target) setup = (guess = "arise"; target = "rebus")
-
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -535,17 +535,17 @@ Wordlegames = "1cb69566-e1cf-455f-a587-fd79a2e00f5a"
 
 [compat]
 BenchmarkTools = "~1.3.1"
-PlutoUI = "~0.7.36"
-Wordlegames = "~0.2.0"
+PlutoUI = "~0.7.38"
+Wordlegames = "~0.3.0"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.8.0-beta1"
+julia_version = "1.8.0-beta3"
 manifest_format = "2.0"
-project_hash = "2c5a1bbd79e7f6386b6e44c23505b13f57906371"
+project_hash = "045a6e2c86e27f8d763b85c40450eb9e85eed07e"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -589,7 +589,7 @@ version = "3.42.0"
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "0.5.0+0"
+version = "0.5.2+0"
 
 [[deps.Crayons]]
 git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
@@ -749,7 +749,7 @@ version = "1.2.0"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.17+2"
+version = "0.3.20+0"
 
 [[deps.OrderedCollections]]
 git-tree-sha1 = "85f8e6578bf1f9ee0d11e7bb1b1456435479d47c"
@@ -758,9 +758,9 @@ version = "1.4.1"
 
 [[deps.Parsers]]
 deps = ["Dates"]
-git-tree-sha1 = "85b5da0fa43588c75bb1ff986493443f821c70b7"
+git-tree-sha1 = "621f4f3b4977325b9128d5fae7a8b4829a0c2222"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.2.3"
+version = "2.2.4"
 
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
@@ -769,15 +769,15 @@ version = "1.8.0"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
-git-tree-sha1 = "2c87c85e397b7ffed5ffec054f532d4edd05d901"
+git-tree-sha1 = "670e559e5c8e191ded66fa9ea89c97f10376bb4c"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.36"
+version = "0.7.38"
 
 [[deps.PooledArrays]]
 deps = ["DataAPI", "Future"]
-git-tree-sha1 = "db3a23166af8aebf4db5ef87ac5b00d36eb771e2"
+git-tree-sha1 = "28ef6c7ce353f0b35d0df0d5930e0d072c1f5b9b"
 uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
-version = "1.4.0"
+version = "1.4.1"
 
 [[deps.PrettyTables]]
 deps = ["Crayons", "Formatting", "Markdown", "Reexport", "Tables"]
@@ -869,9 +869,9 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[deps.Wordlegames]]
 deps = ["AbstractTrees", "DataFrames", "Random", "Tables"]
-git-tree-sha1 = "2da18538a6107ec5ee5ac09a21da031c61582bb4"
+git-tree-sha1 = "4c463de78d2f3f9447b695e241eba43cc945f866"
 uuid = "1cb69566-e1cf-455f-a587-fd79a2e00f5a"
-version = "0.2.0"
+version = "0.3.0"
 
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
@@ -881,7 +881,7 @@ version = "1.2.12+1"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl", "OpenBLAS_jll"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.0.1+0"
+version = "5.1.0+0"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]

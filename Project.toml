@@ -9,5 +9,5 @@ Franklin = "713c75ef-9fc9-4b05-94a9-213340da978e"
 PlutoStaticHTML = "359b1769-a58e-495b-9770-312e911026ad"
 
 [compat]
-Franklin = "=0.10.70"
-PlutoStaticHTML = "3.3"
+Franklin = "0.10"
+PlutoStaticHTML = "4"
